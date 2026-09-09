@@ -1,6 +1,5 @@
-def main():
-    print("ParkSight is starting...")
+from occupancy import run
 
 
 if __name__ == "__main__":
-    main()
+    run()

@@ -1,32 +1,16 @@
-import os
-
-# Prevent PyTorch threading issues on this system.
-os.environ["OMP_NUM_THREADS"] = "1"
-os.environ["MKL_NUM_THREADS"] = "1"
-
 import cv2
 import json
 import numpy as np
-from ultralytics import YOLO
 
+from config import (
+    VIDEO_PATH,
+    SPACES_PATH,
+    HISTORY_LENGTH,
+    OCCUPIED_THRESHOLD,
+    SHOW_VEHICLES,
+)
 
-VIDEO_PATH = "data/videos/parking.mp4"
-SPACES_PATH = "data/parking_spaces.json"
-
-CONFIDENCE_THRESHOLD = 0.50
-
-# Number of recent frames used to determine occupancy.
-HISTORY_LENGTH = 8
-
-# Number of occupied detections required to mark a space occupied.
-OCCUPIED_THRESHOLD = 5
-
-VEHICLE_CLASSES = {
-    2: "car",
-    3: "motorcycle",
-    5: "bus",
-    7: "truck",
-}
+from detector import VehicleDetector
 
 
 def load_parking_spaces():
@@ -39,9 +23,10 @@ def get_vehicle_ground_points(box):
     Generate several points near the bottom of the
     vehicle bounding box.
 
-    Using multiple points allows one vehicle to occupy
+    Multiple points allow one vehicle to occupy
     more than one adjacent parking space.
     """
+
     x1, y1, x2, y2 = box
 
     ground_y = int(
@@ -52,7 +37,6 @@ def get_vehicle_ground_points(box):
 
     points = []
 
-    # Sample points across the lower part of the vehicle.
     for ratio in [0.10, 0.30, 0.50, 0.70, 0.90]:
 
         x = int(
@@ -66,12 +50,34 @@ def get_vehicle_ground_points(box):
     return points
 
 
-def main():
+def is_space_occupied(polygon, vehicle_points):
+    """
+    Determine whether any vehicle ground point
+    falls inside the parking-space polygon.
+    """
+
+    for point in vehicle_points:
+
+        inside = cv2.pointPolygonTest(
+            polygon,
+            point,
+            False,
+        )
+
+        if inside >= 0:
+            return True
+
+    return False
+
+
+def run():
     parking_spaces = load_parking_spaces()
 
-    print(f"Loaded {len(parking_spaces)} parking spaces.")
+    print(
+        f"Loaded {len(parking_spaces)} parking spaces."
+    )
 
-    model = YOLO("yolo11n.pt")
+    detector = VehicleDetector()
 
     cap = cv2.VideoCapture(VIDEO_PATH)
 
@@ -79,63 +85,42 @@ def main():
         print("Error: Could not open video.")
         return
 
-    # Store recent occupancy results for every parking space.
+    # Recent occupancy results for each space.
     occupancy_history = [
         [] for _ in parking_spaces
     ]
 
     while True:
+
         ret, frame = cap.read()
 
         if not ret:
             print("Video ended.")
             break
 
-        results = model(
-            frame,
-            verbose=False,
-            conf=CONFIDENCE_THRESHOLD,
-        )
+        vehicles = detector.detect(frame)
 
         vehicle_points = []
 
-        # --------------------------------------------------
-        # VEHICLE DETECTION
-        # --------------------------------------------------
+        # ---------------------------------------------
+        # VEHICLE PROCESSING
+        # ---------------------------------------------
 
-        for result in results:
+        for vehicle in vehicles:
 
-            for box in result.boxes:
+            box = vehicle["box"]
 
-                class_id = int(box.cls[0])
+            points = get_vehicle_ground_points(
+                box
+            )
 
-                if class_id not in VEHICLE_CLASSES:
-                    continue
+            vehicle_points.extend(points)
 
-                confidence = float(box.conf[0])
+            # Optional debugging visualization.
+            if SHOW_VEHICLES:
 
-                x1, y1, x2, y2 = map(
-                    int,
-                    box.xyxy[0],
-                )
+                x1, y1, x2, y2 = box
 
-                ground_points = get_vehicle_ground_points(
-                    (x1, y1, x2, y2)
-                )
-
-                vehicle_points.extend(ground_points)
-
-                # Draw the ground points for debugging.
-                for point in ground_points:
-                    cv2.circle(
-                        frame,
-                        point,
-                        4,
-                        (255, 0, 255),
-                        -1,
-                    )
-
-                # Draw vehicle bounding box.
                 cv2.rectangle(
                     frame,
                     (x1, y1),
@@ -144,10 +129,9 @@ def main():
                     2,
                 )
 
-                # Display vehicle class and confidence.
                 label = (
-                    f"{VEHICLE_CLASSES[class_id]} "
-                    f"{confidence:.2f}"
+                    f'{vehicle["class"]} '
+                    f'{vehicle["confidence"]:.2f}'
                 )
 
                 cv2.putText(
@@ -160,39 +144,29 @@ def main():
                     2,
                 )
 
-        # --------------------------------------------------
-        # PARKING SPACE OCCUPANCY
-        # --------------------------------------------------
+        # ---------------------------------------------
+        # PARKING OCCUPANCY
+        # ---------------------------------------------
 
         occupied_count = 0
 
-        for index, space in enumerate(parking_spaces):
+        for index, space in enumerate(
+            parking_spaces
+        ):
 
             polygon = np.array(
                 space,
                 dtype=np.int32,
             )
 
-            detected_occupied = False
-
-            # Check whether a vehicle's bottom-center
-            # point lies inside this parking space.
-            for point in vehicle_points:
-
-                inside = cv2.pointPolygonTest(
+            detected_occupied = (
+                is_space_occupied(
                     polygon,
-                    point,
-                    False,
+                    vehicle_points,
                 )
+            )
 
-                if inside >= 0:
-                    detected_occupied = True
-                    break
-
-            # --------------------------------------------------
-            # TEMPORAL SMOOTHING
-            # --------------------------------------------------
-
+            # Add current result to history.
             history = occupancy_history[index]
 
             history.append(
@@ -202,6 +176,7 @@ def main():
             if len(history) > HISTORY_LENGTH:
                 history.pop(0)
 
+            # Smooth the result.
             occupied_votes = sum(history)
 
             occupied = (
@@ -209,16 +184,20 @@ def main():
             )
 
             if occupied:
+
                 occupied_count += 1
+
                 status = "OCCUPIED"
                 line_color = (0, 0, 255)
                 thickness = 3
+
             else:
+
                 status = "AVAILABLE"
                 line_color = (0, 255, 0)
                 thickness = 2
 
-            # Draw parking-space polygon.
+            # Draw parking space.
             cv2.polylines(
                 frame,
                 [polygon],
@@ -227,7 +206,6 @@ def main():
                 thickness,
             )
 
-            # Find approximate center of parking space.
             center_x = int(
                 np.mean(polygon[:, 0])
             )
@@ -236,7 +214,6 @@ def main():
                 np.mean(polygon[:, 1])
             )
 
-            # Display parking-space status.
             cv2.putText(
                 frame,
                 f"P{index + 1}: {status}",
@@ -247,9 +224,9 @@ def main():
                 2,
             )
 
-        # --------------------------------------------------
-        # PARKING STATISTICS
-        # --------------------------------------------------
+        # ---------------------------------------------
+        # PARKING SUMMARY
+        # ---------------------------------------------
 
         capacity = len(parking_spaces)
 
@@ -295,13 +272,11 @@ def main():
             2,
         )
 
-        # Display result.
         cv2.imshow(
             "ParkSight - Parking Occupancy",
             frame,
         )
 
-        # Press Q to exit.
         if cv2.waitKey(1) & 0xFF == ord("q"):
             break
 
@@ -310,4 +285,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    run()
