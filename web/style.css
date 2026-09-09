@@ -1,0 +1,194 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+
+    font-family:
+        Arial,
+        Helvetica,
+        sans-serif;
+
+    background: #f5f6f8;
+    color: #1f2937;
+}
+
+.container {
+    width: min(900px, 92%);
+    margin: 50px auto;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+
+    margin-bottom: 30px;
+}
+
+.header h1 {
+    margin: 0;
+    font-size: 32px;
+}
+
+.header p {
+    margin-top: 6px;
+    color: #6b7280;
+}
+
+.live-status {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+
+    font-size: 13px;
+    font-weight: bold;
+}
+
+.status-dot {
+    width: 9px;
+    height: 9px;
+
+    border-radius: 50%;
+
+    background: #22c55e;
+}
+
+.summary {
+    display: grid;
+
+    grid-template-columns:
+        repeat(3, 1fr);
+
+    gap: 16px;
+
+    margin-bottom: 30px;
+}
+
+.card {
+    background: white;
+
+    border: 1px solid #e5e7eb;
+
+    border-radius: 12px;
+
+    padding: 22px;
+
+    text-align: center;
+}
+
+.card span {
+    display: block;
+
+    font-size: 13px;
+
+    color: #6b7280;
+
+    margin-bottom: 8px;
+}
+
+.card strong {
+    font-size: 32px;
+}
+
+.parking-section {
+    background: white;
+
+    border: 1px solid #e5e7eb;
+
+    border-radius: 12px;
+
+    padding: 24px;
+}
+
+.section-header {
+    display: flex;
+
+    justify-content: space-between;
+
+    align-items: center;
+
+    margin-bottom: 20px;
+}
+
+.section-header h2 {
+    margin: 0;
+
+    font-size: 20px;
+}
+
+.section-header span {
+    font-size: 12px;
+
+    color: #6b7280;
+}
+
+.parking-grid {
+    display: grid;
+
+    grid-template-columns:
+        repeat(3, 1fr);
+
+    gap: 12px;
+}
+
+.space {
+    padding: 20px;
+
+    border-radius: 10px;
+
+    border: 1px solid #e5e7eb;
+
+    text-align: center;
+}
+
+.space-name {
+    font-weight: bold;
+
+    margin-bottom: 8px;
+}
+
+.space-status {
+    font-size: 12px;
+
+    font-weight: bold;
+}
+
+.space.available {
+    background: #f0fdf4;
+
+    border-color: #bbf7d0;
+}
+
+.space.available
+.space-status {
+    color: #15803d;
+}
+
+.space.occupied {
+    background: #fef2f2;
+
+    border-color: #fecaca;
+}
+
+.space.occupied
+.space-status {
+    color: #dc2626;
+}
+
+@media (max-width: 600px) {
+
+    .summary {
+        grid-template-columns: 1fr;
+    }
+
+    .parking-grid {
+        grid-template-columns:
+            repeat(2, 1fr);
+    }
+
+    .header {
+        align-items: flex-start;
+    }
+}

@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>ParkSight</title>
+
+    <link
+        rel="stylesheet"
+        href="/static/style.css"
+    >
+</head>
+
+<body>
+
+    <main class="container">
+
+        <header class="header">
+
+            <div>
+                <h1>ParkSight</h1>
+
+                <p>
+                    Intelligent Parking Management
+                </p>
+            </div>
+
+            <div class="live-status">
+                <span class="status-dot"></span>
+                LIVE
+            </div>
+
+        </header>
+
+
+        <section class="summary">
+
+            <div class="card">
+                <span>Capacity</span>
+                <strong id="capacity">-</strong>
+            </div>
+
+            <div class="card">
+                <span>Occupied</span>
+                <strong id="occupied">-</strong>
+            </div>
+
+            <div class="card">
+                <span>Available</span>
+                <strong id="available">-</strong>
+            </div>
+
+        </section>
+
+
+        <section class="parking-section">
+
+            <div class="section-header">
+
+                <h2>Parking Status</h2>
+
+                <span id="updated">
+                    Waiting for data...
+                </span>
+
+            </div>
+
+            <div
+                id="parking-grid"
+                class="parking-grid"
+            ></div>
+
+        </section>
+
+    </main>
+
+    <script src="/static/app.js"></script>
+
+</body>
+
+</html>

@@ -1,6 +1,8 @@
 from fastapi import FastAPI
-
 from src.monitor import ParkingMonitor
+
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 
 app = FastAPI(
     title="ParkSight API",
@@ -23,14 +25,18 @@ def shutdown():
 
     monitor.stop()
 
+app.mount(
+    "/static",
+    StaticFiles(directory="web"),
+    name="static",
+)
 
 @app.get("/")
 def root():
 
-    return {
-        "name": "ParkSight",
-        "status": "running",
-    }
+    return FileResponse(
+        "web/index.html"
+    )
 
 
 @app.get("/status")
