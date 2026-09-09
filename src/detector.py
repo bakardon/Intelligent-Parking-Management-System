@@ -6,7 +6,7 @@ os.environ["MKL_NUM_THREADS"] = "1"
 
 from ultralytics import YOLO
 
-from config import (
+from src.config import (
     MODEL_PATH,
     CONFIDENCE_THRESHOLD,
 )
