@@ -43,3 +43,7 @@ def root():
 def get_status():
 
     return monitor.get_status()
+
+@app.get("/history")
+def get_history(limit: int = 100):
+    return monitor.database.get_history(limit=limit)

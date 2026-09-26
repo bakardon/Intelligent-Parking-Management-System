@@ -1,98 +1,88 @@
-import cv2
 import threading
 import time
+import cv2
 
-from src.config import VIDEO_PATH
+from src.config import (
+    VIDEO_PATH,
+    DATABASE_SAVE_INTERVAL,
+)
 from src.detector import VehicleDetector
 from src.occupancy import ParkingOccupancy
+from src.database import Database
 
 
 class ParkingMonitor:
-
     def __init__(self):
-
         self.detector = VehicleDetector()
         self.occupancy = ParkingOccupancy()
+        self.database = Database()
 
         self.status = {
-            "capacity": len(
-                self.occupancy.parking_spaces
-            ),
+            "capacity": 0,
             "occupied": 0,
-            "available": len(
-                self.occupancy.parking_spaces
-            ),
-            "spaces": {
-                f"P{i + 1}": False
-                for i in range(
-                    len(
-                        self.occupancy.parking_spaces
-                    )
-                )
-            },
+            "available": 0,
+            "spaces": {},
         }
 
         self.running = False
         self.thread = None
-
-    def process_video(self):
-
-        cap = cv2.VideoCapture(
-            VIDEO_PATH
-        )
-
-        if not cap.isOpened():
-            print(
-                "Error: Could not open video."
-            )
-            return
-
-        while self.running:
-
-            ret, frame = cap.read()
-
-            if not ret:
-                # Restart the video when it ends.
-                cap.set(
-                    cv2.CAP_PROP_POS_FRAMES,
-                    0,
-                )
-                continue
-
-            vehicles = self.detector.detect(
-                frame
-            )
-
-            self.status = (
-                self.occupancy.update(
-                    vehicles
-                )
-            )
-
-            # Small delay to avoid unnecessary
-            # CPU usage with the demo video.
-            time.sleep(0.01)
-
-        cap.release()
+        self.last_database_save = 0
 
     def start(self):
-
         if self.running:
             return
 
-        self.running = True
+        self.database.initialize()
 
+        self.running = True
         self.thread = threading.Thread(
-            target=self.process_video,
+            target=self._run,
             daemon=True,
         )
-
         self.thread.start()
 
     def stop(self):
-
         self.running = False
 
-    def get_status(self):
+        if self.thread and self.thread.is_alive():
+            self.thread.join(timeout=2)
 
-        return self.status.copy()
+    def get_status(self):
+        return self.status
+
+    def _run(self):
+        while self.running:
+            cap = cv2.VideoCapture(VIDEO_PATH)
+
+            if not cap.isOpened():
+                print("Error: Could not open video.")
+                time.sleep(2)
+                continue
+
+            while self.running:
+                ret, frame = cap.read()
+
+                if not ret:
+                    break
+
+                vehicles = self.detector.detect(frame)
+
+                self.status = self.occupancy.update(vehicles)
+
+                self._save_to_database_if_needed()
+
+            cap.release()
+
+    def _save_to_database_if_needed(self):
+        current_time = time.time()
+
+        if current_time - self.last_database_save < DATABASE_SAVE_INTERVAL:
+            return
+
+        self.database.save_occupancy(
+            capacity=self.status["capacity"],
+            occupied=self.status["occupied"],
+            available=self.status["available"],
+        )
+
+        self.last_database_save = current_time
