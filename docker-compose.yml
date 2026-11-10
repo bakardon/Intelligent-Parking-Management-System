@@ -1,0 +1,67 @@
+# ParkSight on-premise deployment: application + PostgreSQL.
+#
+#   cp .env.example .env      # then edit the passwords and secret key
+#   mkdir -p models && cp /path/to/yolo11n.pt models/
+#   docker compose up -d --build
+#   docker compose logs parksight | grep "SETUP TOKEN"
+#
+# Open http://<server-address>:8000 and create the first administrator.
+
+services:
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_NAME:-parksight}
+      POSTGRES_USER: ${DB_USER:-parksight}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      TZ: ${PARKSIGHT_TIMEZONE:-UTC}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./backups:/backups
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    # The database is not published on the host network. Uncomment to allow
+    # local administration tools to connect:
+    # ports:
+    #   - "127.0.0.1:5432:5432"
+
+  parksight:
+    build: .
+    image: parksight:2.0.0
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${DB_NAME:-parksight}
+      DB_USER: ${DB_USER:-parksight}
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in .env}
+      PARKSIGHT_SECRET_KEY: ${PARKSIGHT_SECRET_KEY:?Set PARKSIGHT_SECRET_KEY in .env}
+      PARKSIGHT_TIMEZONE: ${PARKSIGHT_TIMEZONE:-UTC}
+      PARKSIGHT_COOKIE_SECURE: ${PARKSIGHT_COOKIE_SECURE:-false}
+      PARKSIGHT_TORCH_THREADS: ${PARKSIGHT_TORCH_THREADS:-1}
+      PARKSIGHT_LOG_LEVEL: ${PARKSIGHT_LOG_LEVEL:-INFO}
+    ports:
+      - "${PARKSIGHT_PORT:-8000}:8000"
+    volumes:
+      - appdata:/app/data
+      - ./models:/app/models:ro
+      - ./data/videos:/app/data/videos:ro
+    # Cameras are reached through the host's network (bridge NAT). On Linux,
+    # if cameras are on a network the bridge cannot route to, replace the
+    # "ports" section with:  network_mode: host
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+volumes:
+  pgdata:
+  appdata:
