@@ -1,6 +1,12 @@
-opencv-python
-ultralytics
-fastapi
-uvicorn
-psycopg2-binary
-python-dotenv
+# Runtime dependencies (versions verified by the test suite on 2026-11-10).
+# PyTorch is installed by ultralytics; for CPU-only Linux hosts install the
+# CPU wheels first (see Dockerfile) to avoid downloading CUDA libraries.
+ultralytics==8.4.138
+opencv-python==5.0.0.93
+numpy==2.2.6
+fastapi==0.141.1
+uvicorn==0.52.4
+pydantic==2.13.5
+psycopg2-binary==2.9.13
+python-dotenv==1.2.3
+cryptography==50.0.2

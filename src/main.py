@@ -1,3 +1,13 @@
+"""
+Desktop preview of the original single-camera demo (OpenCV window).
+
+    python -m src.main
+
+Uses data/videos/parking.mp4 and data/parking_spaces.json. The production
+system is the web application (src/api.py); this tool is kept for quick
+visual checks of a layout.
+"""
+
 import cv2
 import numpy as np
 
@@ -62,7 +72,12 @@ def draw_parking_spaces(
             "spaces"
         ][space_name]
 
-        if occupied:
+        if occupied is None:
+            # Not enough observations yet (temporal smoothing warm-up).
+            line_color = (160, 160, 160)
+            thickness = 1
+            state = "UNKNOWN"
+        elif occupied:
             line_color = (0, 0, 255)
             thickness = 3
             state = "OCCUPIED"
